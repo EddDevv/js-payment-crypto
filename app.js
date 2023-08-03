@@ -182,11 +182,6 @@ function start() {
 			clearAllIntervals()
 			let formattedAmount = ''
 			appElement.innerHTML = `
-			<select name="" id="land-s">
-			<option value="#">Дефолтное</option>
-			<option value="ru">Россия</option>
-			<option value="in">Индия</option>
-		</select>
     <section class="main">
       <div class="wrapper">
         <div class="main-top">
@@ -209,7 +204,7 @@ function start() {
 							<input class="input-amount" type="text" value="${formattedAmount}" />
               <span>${store.currency.currency_symbol}</span>
             </div>
-						<div id='message' class='message-not'></div>
+						<div id='message' style='margin-top: 10px; margin-left: 10px' class='=error'></div>
             <button
               disabled
 							id='btn-amount'
@@ -380,6 +375,7 @@ function start() {
 						${t('cancelPaid')}
 					</button>
 				</div>
+				<div style='margin-top: 10px; margin-left: 10px; font-size: 20px' id='error-utr' class='error'></div>
 			</div>
 			<div class="main-bottom">
 				<p>${t('help')}</p>
@@ -396,11 +392,6 @@ function start() {
 					const utrValue = e.target.value
 					store.utr = utrValue
 					localStorage.setItem('store', JSON.stringify(store))
-					if (utrValue) {
-						btnConfirmPay.removeAttribute('disabled', '')
-					} else {
-						btnConfirmPay.setAttribute('disabled', '')
-					}
 				})
 			}
 			btnCreatePay.addEventListener('click', async (e) => {
@@ -446,16 +437,8 @@ function start() {
 
 			if (store.isActive) {
 				btnCreatePay.setAttribute('disabled', '')
+				btnConfirmPay.removeAttribute('disabled', '')
 				startTimer()
-				if (store.utr && store.lang === 'in') {
-					btnConfirmPay.removeAttribute('disabled', '')
-				} else if (!store.utr && store.lang === 'in') {
-					btnConfirmPay.setAttribute('disabled', '')
-				} else {
-					btnConfirmPay.removeAttribute('disabled', '')
-				}
-			} else {
-				btnConfirmPay.setAttribute('disabled', '')
 			}
 
 			const createPay = async (amount, currency_code, crypto_currency_code, payment_method, card_holder) => {
@@ -485,14 +468,33 @@ function start() {
 			}
 
 			btnConfirmPay.addEventListener('click', async () => {
-				const data = await confirmPay()
-				if (data.Code) {
-					console.log(data.Message)
+				if (store.lang === 'in') {
+					if (!store.utr) {
+						shadowRoot.querySelector('#error-utr').innerHTML = 'Enter UTR number to complete'
+						setTimeout(() => {
+							shadowRoot.querySelector('#error-utr').innerHTML = ''
+						}, 3000)
+					} else {
+						const data = await confirmPay()
+						if (data.Code) {
+							console.log(data.Message)
+						} else {
+							store.step = 3
+							localStorage.setItem('store', JSON.stringify(store))
+							switchStep(3)
+							loadTranslations()
+						}
+					}
 				} else {
-					store.step = 3
-					localStorage.setItem('store', JSON.stringify(store))
-					switchStep(3)
-					loadTranslations()
+					const data = await confirmPay()
+					if (data.Code) {
+						console.log(data.Message)
+					} else {
+						store.step = 3
+						localStorage.setItem('store', JSON.stringify(store))
+						switchStep(3)
+						loadTranslations()
+					}
 				}
 			})
 
@@ -895,13 +897,6 @@ function start() {
 				elemAtr.setAttribute(atrValue, '')
 			}
 		}
-
-		shadowRoot.getElementById('land-s').addEventListener('change', (e) => {
-			store.lang = e.target.value
-			store.currency = langData[store.lang].currency
-			localStorage.setItem('store', JSON.stringify(store))
-			loadTranslations()
-		})
 
 		const copyButtons = shadowRoot.querySelectorAll('.copy-button')
 		copyButtons.forEach((button) => {
